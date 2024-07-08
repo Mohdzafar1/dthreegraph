@@ -7,6 +7,7 @@ import CustomBarChart from './Sections/barChart/CustomBarChart';
 import LinerScale from './Sections/LinerScal/LinerScale';
 import CandlestickChartD3 from "./chartGraph/CandelStickD3";
 import CandleStickChart from './chartGraph/CandlestickChart';
+import CandlestickChart2 from './chartGraph/CandleStickChart2';
 
 function generateRandomData(startDate, numPoints) {
   const data = [];
@@ -43,7 +44,10 @@ function App() {
        {/* <CustomBarChart/> */}
        {/* <LinerScale/> */}
        {/* <CandlestickChartD3  data={data}/> */}
-         <CandleStickChart  data={generateRandomData("2024-07-01",500)}/>
+         {/* <CandleStickChart  data={generateRandomData("2024-07-01",5000)}/> */}
+         <CandleStickChart  data={data}/>
+         {/* <CandlestickChart2 data={data}/> */}
+
     </div>
   );
 }
