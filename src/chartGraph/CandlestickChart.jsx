@@ -9,17 +9,22 @@ export default function CandlestickChart({
   marginRight = 20,
   marginBottom = 30,
   marginLeft = 40,
+  minCandleWidth = 5, // Define the minimum candle width
+  minCandleSpacing = 20, // Define the minimum space between candles
 }) {
   const gx = useRef();
   const gy = useRef();
   const svgRef = useRef();
   const clipPathId = "clip-path"; // Unique ID for the clip path
 
-  // Adjusted x-scale to fit all data within visible area
+  // Calculate the total width required for all candles
+  const totalCandleWidth = minCandleWidth + minCandleSpacing;
+  const totalWidth = totalCandleWidth * data.length;
+
   const x = d3
     .scaleLinear()
-    .domain([0, data.length]) // Adjusted domain to fit all data points
-    .range([marginLeft, width - marginRight]);
+    .domain([0, data.length - 1])
+    .range([marginLeft, totalWidth + marginLeft - minCandleSpacing]);
 
   const y = d3
     .scaleLinear()
@@ -53,10 +58,12 @@ export default function CandlestickChart({
       );
       d3.select(gy.current).call(d3.axisLeft(newY));
 
+      const candleWidth = Math.max((newX(1) - newX(0)) * 0.8, minCandleWidth);
+
       svg
         .selectAll(".candle")
-        .attr("x", (d, i) => newX(i))
-        .attr("width", (newX(1) - newX(0)) * 0.8)
+        .attr("x", (d, i) => newX(i) - candleWidth / 2) // Adjust x position based on candle width
+        .attr("width", candleWidth)
         .attr("y", (d, i) => newY(Math.max(data[i].open, data[i].close)))
         .attr("height", (d, i) =>
           Math.abs(newY(data[i].open) - newY(data[i].close))
@@ -64,8 +71,8 @@ export default function CandlestickChart({
 
       svg
         .selectAll(".wick")
-        .attr("x1", (d, i) => newX(i) + (newX(1) - newX(0)) * 0.4)
-        .attr("x2", (d, i) => newX(i) + (newX(1) - newX(0)) * 0.4)
+        .attr("x1", (d, i) => newX(i))
+        .attr("x2", (d, i) => newX(i))
         .attr("y1", (d, i) => newY(data[i].high))
         .attr("y2", (d, i) => newY(data[i].low));
     };
@@ -75,7 +82,9 @@ export default function CandlestickChart({
         .scaleExtent([0.5, 5]) // Limit zoom scale from 0.5x to 5x
         .on("zoom", zoomed)
     );
-  }, [gx, gy, x, y, data]);
+  }, [gx, gy, x, y, data, minCandleWidth, minCandleSpacing]);
+
+  const candleWidth = Math.max((x(1) - x(0)) * 0.8, minCandleWidth);
 
   return (
     <svg ref={svgRef} width={width} height={height}>
@@ -97,16 +106,16 @@ export default function CandlestickChart({
             <line
               className="wick"
               stroke="black"
-              x1={x(i) + (x(1) - x(0)) * 0.4}
-              x2={x(i) + (x(1) - x(0)) * 0.4}
+              x1={x(i)}
+              x2={x(i)}
               y1={y(d.high)}
               y2={y(d.low)}
             />
             <rect
               className="candle"
               fill={d.open > d.close ? "red" : "green"}
-              x={x(i)}
-              width={(x(1) - x(0)) * 0.8}
+              x={x(i) - candleWidth / 2} // Adjust x position based on candle width
+              width={candleWidth}
               y={y(Math.max(d.open, d.close))}
               height={Math.abs(y(d.open) - y(d.close))}
             />
