@@ -9,28 +9,10 @@ import CandlestickChartD3 from "./chartGraph/CandelStickD3";
 import CandleStickChart from './chartGraph/CandlestickChart';
 import CandlestickChart2 from './chartGraph/CandleStickChart2';
 
-function generateRandomData(startDate, numPoints) {
-  const data = [];
-  let currentDate = new Date(startDate);
-
-  for (let i = 0; i < numPoints; i++) {
-    const open = Math.random() * (200 - 80) + 80;
-    const close = Math.random() * (200 - 80) + 80;
-    const high = Math.max(open, close) + Math.random() * 20;
-    const low = Math.min(open, close) - Math.random() * 20;
-
-    data.push({
-      date: currentDate.toISOString().split("T")[0],
-      open: parseFloat(open.toFixed(2)),
-      close: parseFloat(close.toFixed(2)),
-      high: parseFloat(high.toFixed(2)),
-      low: parseFloat(low.toFixed(2)),
-    });
-
-    currentDate.setDate(currentDate.getDate() + 1);
-  }
-
-  return data;
+function formatDateString(seconds) {
+  const date = new Date(seconds * 1000); // Convert seconds to milliseconds
+  const options = { day: "numeric", month: "long" };
+  return date.toLocaleDateString("en-US", options); // Format as "19 July"
 }
 
 
@@ -46,7 +28,7 @@ function App() {
        {/* <CandlestickChartD3  data={data}/> */}
          {/* <CandleStickChart  data={generateRandomData("2024-07-01",5000)}/> */}
          <CandleStickChart  data={data}/> 
-         {/* <CandlestickChart2 data={data}/> */} 
+         {/* <CandlestickChart2 data={data}/>  */}
 
     </div>
   );

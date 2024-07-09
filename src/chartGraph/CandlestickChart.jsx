@@ -39,7 +39,8 @@ export default function CandlestickChart({
     .domain([0, data.length - 1])
     .range([marginLeft, dimensions.width - marginRight]);
 
-  const y = d3
+
+   const y = d3
     .scaleLinear()
     .domain([d3.min(data, (d) => d.low), d3.max(data, (d) => d.high)])
     .nice()
@@ -93,18 +94,21 @@ export default function CandlestickChart({
       setClickedPoints((prevPoints) =>
         prevPoints.map((point) => ({
           ...point,
-          x: newX(point.index),
-          y: newY(data[point.index].close) - 10,
+          x: event.transform.applyX(point.originalX),
+          y: event.transform.applyY(point.originalY),
         }))
       );
 
       if (inputVisible && currentIndex !== null) {
-        const newClickedX = newX(currentIndex);
-        const newClickedY = newY(data[currentIndex].close) - 10;
+        const clickedPoint = clickedPoints.find(point => point.index === currentIndex);
+        if (clickedPoint) {
+          const newClickedX = event.transform.applyX(clickedPoint.originalX);
+          const newClickedY = event.transform.applyY(clickedPoint.originalY);
 
-        d3.select(inputRef.current)
-          .style("left", `${newClickedX + 10}px`)
-          .style("top", `${newClickedY + 50}px`);
+          d3.select(inputRef.current)
+            .style("left", `${newClickedX + 10}px`)
+            .style("top", `${newClickedY + 50}px`);
+        }
       }
     };
 
@@ -125,7 +129,7 @@ export default function CandlestickChart({
     const rect = event.target.getBoundingClientRect();
     const tooltipX = rect.left + window.pageXOffset;
     const tooltipY = y(Math.max(d.open, d.close)) + marginTop;
-
+  
     setTooltip({
       date: d.date,
       open: d.open,
@@ -138,6 +142,7 @@ export default function CandlestickChart({
       height: Math.abs(y(d.open) - y(d.close)),
     });
   };
+  ;
 
   const handleMouseOut = () => {
     setTooltip(null);
@@ -176,6 +181,8 @@ export default function CandlestickChart({
       const newPoint = {
         x: x(currentIndex),
         y: y(data[currentIndex].close) - 10,
+        originalX: x(currentIndex),
+        originalY: y(data[currentIndex].close) - 10,
         index: currentIndex,
         text: inputValue,
       };
@@ -244,6 +251,26 @@ export default function CandlestickChart({
           ))}
         </g>
       </svg>
+      {tooltip && (
+      <div
+        style={{
+          position: 'absolute',
+          left: `${tooltip.x}px`,
+          top: `${tooltip.y}px`,
+          background: 'rgba(0, 0, 0, 0.8)',
+          color: 'white',
+          padding: '5px',
+          borderRadius: '5px',
+          pointerEvents: 'none', // Prevents interaction with the tooltip itself
+        }}
+      >
+        <p>Date: {tooltip.date}</p>
+        <p>Open: {tooltip.open}</p>
+        <p>Close: {tooltip.close}</p>
+        <p>High: {tooltip.high}</p>
+        <p>Low: {tooltip.low}</p>
+      </div>
+    )}
       {inputVisible && currentIndex !== null && (
         <input
           ref={inputRef}
