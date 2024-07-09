@@ -18,6 +18,10 @@ export default function CandlestickChart({
   const [inputVisible, setInputVisible] = useState(false);
   const [inputValue, setInputValue] = useState("");
   const [currentIndex, setCurrentIndex] = useState(null);
+  const [startPoint, setStartPoint] = useState(null);
+  const [endPoint, setEndPoint] = useState(null);
+  const [drawingTrendLine, setDrawingTrendLine] = useState(false);
+  const [allowTextInput, setAllowTextInput] = useState(false);
 
   const handleResize = () => {
     const newWidth = window.innerWidth - 40;
@@ -94,6 +98,22 @@ export default function CandlestickChart({
         }))
       );
 
+      // Update trend line points position on zoom
+      if (startPoint) {
+        setStartPoint((prevPoint) => ({
+          ...prevPoint,
+          x: newX(prevPoint.index),
+          y: newY(data[prevPoint.index].close) - 10,
+        }));
+      }
+      if (endPoint) {
+        setEndPoint((prevPoint) => ({
+          ...prevPoint,
+          x: newX(prevPoint.index),
+          y: newY(data[prevPoint.index].close) - 10,
+        }));
+      }
+
       if (inputVisible && currentIndex !== null) {
         const clickedPoint = clickedPoints.find(
           (point) => point.index === currentIndex
@@ -109,15 +129,26 @@ export default function CandlestickChart({
       }
     };
 
-    svg.call(
-      d3.zoom().scaleExtent([0.5, 5]).on("zoom", zoomed)
-    );
+    svg.call(d3.zoom().scaleExtent([0.5, 5]).on("zoom", zoomed));
 
     window.addEventListener("resize", handleResize);
     return () => {
       window.removeEventListener("resize", handleResize);
     };
-  }, [gx, gy, x, y, data, minCandleWidth, dimensions.height, clickedPoints, inputVisible, currentIndex]);
+  }, [
+    gx,
+    gy,
+    x,
+    y,
+    data,
+    minCandleWidth,
+    dimensions.height,
+    clickedPoints,
+    inputVisible,
+    currentIndex,
+    startPoint,
+    endPoint,
+  ]);
 
   const handleMouseOver = (event, d) => {
     if (!d) return; // Check if d is undefined
@@ -142,35 +173,96 @@ export default function CandlestickChart({
     setTooltip(null);
   };
 
+  // const handleChartClick = (event, d, i) => {
+  //   if (!d) return; // Check if d is undefined
+  //   if (!drawingTrendLine) {
+  //     if (allowTextInput) {
+  //       setInputVisible(true);
+  //       setCurrentIndex(i);
+  //       setInputValue("");
+  //     }
+  //     return; // Ignore clicks if not in drawing mode
+  //   }
+
+  //   const svgRect = svgRef.current.getBoundingClientRect();
+  //   const clickX = event.clientX - svgRect.left; // Relative to SVG
+  //   const clickIndex = Math.round(x.invert(clickX));
+  //   const clickY = event.clientY - svgRect.top; // Relative to SVG
+
+  //   if (!startPoint) {
+  //     setStartPoint({
+  //       x: x(clickIndex),
+  //       y: y(data[clickIndex].close) - 10,
+  //       originalX: x(clickIndex),
+  //       originalY: y(data[clickIndex].close) - 10,
+  //       index: clickIndex,
+  //     });
+  //   } else if (!endPoint) {
+  //     setEndPoint({
+  //       x: x(clickIndex),
+  //       y: y(data[clickIndex].close) - 10,
+  //       originalX: x(clickIndex),
+  //       originalY: y(data[clickIndex].close) - 10,
+  //       index: clickIndex,
+  //     });
+  //     setDrawingTrendLine(false); // Exit drawing mode after setting end point
+  //   } else {
+  //     setStartPoint(null);
+  //     setEndPoint(null);
+  //   }
+  // };
+
   const handleChartClick = (event, d, i) => {
     if (!d) return; // Check if d is undefined
+    if (!drawingTrendLine) {
+      if (allowTextInput) {
+        setInputVisible(true);
+        setCurrentIndex(i);
+        setInputValue("");
+      }
+      return; // Ignore clicks if not in drawing mode
+    }
+  
     const svgRect = svgRef.current.getBoundingClientRect();
     const clickX = event.clientX - svgRect.left; // Relative to SVG
     const clickIndex = Math.round(x.invert(clickX));
     const clickY = event.clientY - svgRect.top; // Relative to SVG
-    handleText(clickIndex, clickY);
+  
+    if (!startPoint) {
+      setStartPoint({
+        x: x(clickIndex),
+        y: y(data[clickIndex].close) - 10,
+        originalX: x(clickIndex),
+        originalY: y(data[clickIndex].close) - 10,
+        index: clickIndex,
+      });
+    } else if (!endPoint) {
+      setEndPoint({
+        x: x(clickIndex),
+        y: y(data[clickIndex].close) - 10,
+        originalX: x(clickIndex),
+        originalY: y(data[clickIndex].close) - 10,
+        index: clickIndex,
+      });
+    } else {
+      // Change the endPoint if both startPoint and endPoint are set
+      setEndPoint({
+        x: x(clickIndex),
+        y: y(data[clickIndex].close) - 10,
+        originalX: x(clickIndex),
+        originalY: y(data[clickIndex].close) - 10,
+        index: clickIndex,
+      });
+    }
   };
+  
 
-  const handleText = (clickIndex, clickY) => {
-    setInputVisible(true); // Ensure inputVisible is set to true after setting clickedPoint
-    setCurrentIndex(clickIndex);
-    setInputValue("");
-
-    const clickedX = x(clickIndex);
-    const clickedY = y(data[clickIndex].close) - 10;
-
-    d3.select(inputRef.current)
-      .style("left", `${clickedX + 10}px`)
-      .style("top", `${clickedY + 50}px`);
-  };
 
   const handleInputChange = (event) => {
     setInputValue(event.target.value);
   };
 
   const handleInputBlur = () => {
-    setInputVisible(false);
-
     if (currentIndex !== null) {
       const newPoint = {
         x: x(currentIndex),
@@ -183,13 +275,73 @@ export default function CandlestickChart({
 
       setClickedPoints((prevPoints) => [...prevPoints, newPoint]);
     }
+
+    setInputVisible(false);
+    setAllowTextInput(false); // Reset text input mode
+  };
+
+  const handleInputKeyDown = (event) => {
+    if (event.key === "Enter") {
+      handleInputBlur();
+    }
+  };
+
+  const toggleTrendLineDrawing = () => {
+    setDrawingTrendLine((prev) => !prev);
+
+    // Reset points if trend line drawing is turned off
+    if (drawingTrendLine) {
+      setStartPoint(null);
+      setEndPoint(null);
+    }
+  };
+
+  const toggleTextInputMode = () => {
+    setAllowTextInput((prev) => !prev);
+    setInputVisible(false);
+    setInputValue("");
+    setCurrentIndex(null);
   };
 
   return (
     <>
-      <svg 
-      ref={svgRef} width={dimensions.width} height={dimensions.height}
+      <button
+        onClick={toggleTrendLineDrawing}
+        style={{
+          position: "absolute",
+          top: "10px",
+          left: "10px",
+          zIndex: 10,
+          padding: "10px",
+          backgroundColor: drawingTrendLine ? "red" : "green",
+          color: "white",
+          border: "none",
+          borderRadius: "5px",
+          cursor: "pointer",
+
+        }}
       >
+        {drawingTrendLine ? "Cancel Trend Line" : "Draw Trend Line"}
+      </button>
+      <button
+        onClick={toggleTextInputMode}
+        style={{
+          position: "absolute",
+          top: "10px",
+          left: "140px",
+          zIndex: 10,
+          padding: "10px",
+          backgroundColor: allowTextInput ? "blue" : "orange",
+          color: "white",
+          border: "none",
+          borderRadius: "5px",
+          cursor: "pointer",
+          marginLeft:"15px"
+        }}
+      >
+        {allowTextInput ? "Cancel Text Input" : "Add Text"}
+      </button>
+      <svg ref={svgRef} width={dimensions.width} height={dimensions.height}>
         <defs>
           <clipPath id={clipPathId}>
             <rect
@@ -226,6 +378,34 @@ export default function CandlestickChart({
               />
             </g>
           ))}
+          {startPoint && (
+            <circle
+              cx={startPoint.x}
+              cy={startPoint.y}
+              r={5}
+              fill="blue"
+              onClick={() => setStartPoint(null)}
+            />
+          )}
+          {endPoint && (
+            <circle
+              cx={endPoint.x}
+              cy={endPoint.y}
+              r={5}
+              fill="blue"
+              onClick={() => setEndPoint(null)}
+            />
+          )}
+          {startPoint && endPoint && (
+            <line
+              x1={startPoint.x}
+              y1={startPoint.y}
+              x2={endPoint.x}
+              y2={endPoint.y}
+              stroke="blue"
+              strokeWidth={2}
+            />
+          )}
           {clickedPoints.map((point, i) => (
             <g key={i}>
               <circle cx={point.x} cy={point.y} r={5} fill="yellow" />
@@ -269,6 +449,7 @@ export default function CandlestickChart({
           value={inputValue}
           onChange={handleInputChange}
           onBlur={handleInputBlur}
+          onKeyDown={handleInputKeyDown}
           style={{
             position: "absolute",
             left: `${x(currentIndex) + 10}px`,
@@ -277,8 +458,8 @@ export default function CandlestickChart({
             color: "white",
             borderColor: "black",
             backgroundColor: "#3b0f0f",
-            padding:"7px",
-            borderRadius:"10px"
+            padding: "7px",
+            borderRadius: "10px",
           }}
         />
       )}
