@@ -16,6 +16,8 @@ export default function CandlestickChart({
   const gy = useRef();
   const svgRef = useRef();
   const clipPathId = "clip-path";
+  const circleRef = useRef();
+  const textRef = useRef();
   const [tooltip, setTooltip] = useState(null);
   const [clickedPoint, setClickedPoint] = useState(null);
 
@@ -87,11 +89,23 @@ export default function CandlestickChart({
 
       // Update clicked point position on zoom
       if (clickedPoint) {
+        const { index } = clickedPoint;
+        const newClickedX = newX(index);
+        const newClickedY = newY(data[index].close) - 10;
+
         setClickedPoint({
           ...clickedPoint,
-          x: newX(clickedPoint.index),
-          y: newY(data[clickedPoint.index].close),
+          x: newClickedX,
+          y: newClickedY,
         });
+
+        d3.select(circleRef.current)
+          .attr("cx", newClickedX)
+          .attr("cy", newClickedY);
+
+        d3.select(textRef.current)
+          .attr("x", newClickedX + 10)
+          .attr("y", newClickedY - 10);
       }
     };
 
@@ -139,10 +153,11 @@ export default function CandlestickChart({
     handleText(clickIndex, clickY);
   };
 
+  // add text on candleStick
   const handleText = (clickIndex, clickY) => {
     const updatedClickedPoint = {
       x: x(clickIndex),
-      y: clickY + marginTop,
+      y: y(data[clickIndex].close) - 10, // Set relative position
       index: clickIndex,
       text: "", // Initially empty
     };
@@ -158,6 +173,7 @@ export default function CandlestickChart({
         text: input,
       });
     }
+   
   };
 
   return (
@@ -200,14 +216,16 @@ export default function CandlestickChart({
               {clickedPoint && clickedPoint.index === i && (
                 <>
                   <circle
-                    cx={x(i)} // Adjust to be centered on the candlestick
-                    cy={y(Math.max(d.open, d.close)) - 10} // Adjust vertical position to be centered
+                    ref={circleRef}
+                    cx={clickedPoint.x}
+                    cy={clickedPoint.y}
                     r={5}
                     fill="yellow"
                   />
                   <text
-                    x={x(i) + 10} // Adjust horizontal position as needed
-                    y={y(Math.max(d.open, d.close)) - 20} // Adjust vertical position to place it higher above the circle
+                    ref={textRef}
+                    x={clickedPoint.x + 10} // Adjust horizontal position as needed
+                    y={clickedPoint.y - 10} // Adjust vertical position to place it higher above the circle
                     fontSize="14px"
                     fontWeight="bold"
                     textAnchor="start"
