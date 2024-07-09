@@ -89,8 +89,8 @@ export default function CandlestickChart({
       if (clickedPoint) {
         setClickedPoint({
           ...clickedPoint,
-          x: x(clickedPoint.index) + marginLeft,
-          y: y(data[clickedPoint.index].close) + marginTop,
+          x: newX(clickedPoint.index),
+          y: newY(data[clickedPoint.index].close),
         });
       }
     };
@@ -141,7 +141,7 @@ export default function CandlestickChart({
 
   const handleText = (clickIndex, clickY) => {
     const updatedClickedPoint = {
-      x: x(clickIndex) + marginLeft,
+      x: x(clickIndex),
       y: clickY + marginTop,
       index: clickIndex,
       text: "", // Initially empty
@@ -201,7 +201,7 @@ export default function CandlestickChart({
                 <>
                   <circle
                     cx={x(i)} // Adjust to be centered on the candlestick
-                    cy={y(Math.max(d.open, d.close))} // Adjust vertical position to be centered
+                    cy={y(Math.max(d.open, d.close)) - 10} // Adjust vertical position to be centered
                     r={5}
                     fill="yellow"
                   />

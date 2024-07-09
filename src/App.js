@@ -45,8 +45,8 @@ function App() {
        {/* <LinerScale/> */}
        {/* <CandlestickChartD3  data={data}/> */}
          {/* <CandleStickChart  data={generateRandomData("2024-07-01",5000)}/> */}
-         <CandleStickChart  data={data}/>
-         {/* <CandlestickChart2 data={data}/> */}
+         <CandleStickChart  data={data}/> 
+         {/* <CandlestickChart2 data={data}/> */} 
 
     </div>
   );
