@@ -16,14 +16,12 @@ export default function CandlestickChart({
   const gy = useRef();
   const svgRef = useRef();
   const clipPathId = "clip-path";
-  const circleRef = useRef();
-  const textRef = useRef();
   const inputRef = useRef();
   const [tooltip, setTooltip] = useState(null);
-  const [clickedPoint, setClickedPoint] = useState(null);
+  const [clickedPoints, setClickedPoints] = useState([]);
   const [inputVisible, setInputVisible] = useState(false);
   const [inputValue, setInputValue] = useState("");
-  
+  const [currentIndex, setCurrentIndex] = useState(null);
 
   const handleResize = () => {
     const newWidth = window.innerWidth - 40;
@@ -91,25 +89,18 @@ export default function CandlestickChart({
         .attr("y1", (d, i) => newY(data[i].high))
         .attr("y2", (d, i) => newY(data[i].low));
 
-      // Update clicked point position on zoom
-      if (clickedPoint) {
-        const { index } = clickedPoint;
-        const newClickedX = newX(index);
-        const newClickedY = newY(data[index].close) - 10;
+      // Update clicked points position on zoom
+      setClickedPoints((prevPoints) =>
+        prevPoints.map((point) => ({
+          ...point,
+          x: newX(point.index),
+          y: newY(data[point.index].close) - 10,
+        }))
+      );
 
-        setClickedPoint({
-          ...clickedPoint,
-          x: newClickedX,
-          y: newClickedY,
-        });
-
-        d3.select(circleRef.current)
-          .attr("cx", newClickedX)
-          .attr("cy", newClickedY);
-
-        d3.select(textRef.current)
-          .attr("x", newClickedX + 10)
-          .attr("y", newClickedY - 10);
+      if (inputVisible && currentIndex !== null) {
+        const newClickedX = newX(currentIndex);
+        const newClickedY = newY(data[currentIndex].close) - 10;
 
         d3.select(inputRef.current)
           .style("left", `${newClickedX + 10}px`)
@@ -127,7 +118,7 @@ export default function CandlestickChart({
     return () => {
       window.removeEventListener("resize", handleResize);
     };
-  }, [gx, gy, x, y, data, minCandleWidth, dimensions.height, clickedPoint]);
+  }, [gx, gy, x, y, data, minCandleWidth, dimensions.height, clickedPoints, inputVisible, currentIndex]);
 
   const handleMouseOver = (event, d) => {
     if (!d) return; // Check if d is undefined
@@ -162,21 +153,17 @@ export default function CandlestickChart({
   };
 
   const handleText = (clickIndex, clickY) => {
-    const updatedClickedPoint = {
-      x: x(clickIndex),
-      y: y(data[clickIndex].close) - 10, // Set relative position
-      index: clickIndex,
-      text: "", // Initially empty
-    };
-
-    // Set the clicked point with initial text
-    setClickedPoint(updatedClickedPoint);
-
-    // Show the input field
     setInputVisible(true); // Ensure inputVisible is set to true after setting clickedPoint
+    setCurrentIndex(clickIndex);
     setInputValue("");
-  };
 
+    const clickedX = x(clickIndex);
+    const clickedY = y(data[clickIndex].close) - 10;
+
+    d3.select(inputRef.current)
+      .style("left", `${clickedX + 10}px`)
+      .style("top", `${clickedY + 50}px`);
+  };
 
   const handleInputChange = (event) => {
     setInputValue(event.target.value);
@@ -184,10 +171,17 @@ export default function CandlestickChart({
 
   const handleInputBlur = () => {
     setInputVisible(false);
-    setClickedPoint((prev) => ({
-      ...prev,
-      text: inputValue,
-    }));
+
+    if (currentIndex !== null) {
+      const newPoint = {
+        x: x(currentIndex),
+        y: y(data[currentIndex].close) - 10,
+        index: currentIndex,
+        text: inputValue,
+      };
+
+      setClickedPoints((prevPoints) => [...prevPoints, newPoint]);
+    }
   };
 
   return (
@@ -205,55 +199,6 @@ export default function CandlestickChart({
         </defs>
         <g ref={gx} transform={`translate(0,${dimensions.height - marginBottom})`} />
         <g ref={gy} transform={`translate(${marginLeft},0)`} />
-        {/* <g clipPath={`url(#${clipPathId})`}>
-          {data.map((d, i) => (
-            <g key={i} className="candlestick">
-              <line
-                className="wick"
-                stroke="black"
-                x1={x(i)}
-                x2={x(i)}
-                y1={y(d.high)}
-                y2={y(d.low)}
-              />
-              <rect
-                className="candle"
-                fill={d.open > d.close ? "red" : "green"}
-                x={x(i) - Math.max((x(1) - x(0)) * 0.8, minCandleWidth) / 2}
-                width={Math.max((x(1) - x(0)) * 0.8, minCandleWidth)}
-                y={y(Math.max(d.open, d.close))}
-                height={Math.abs(y(d.open) - y(d.close))}
-                onMouseOver={(event) => handleMouseOver(event, d)}
-                onMouseOut={handleMouseOut}
-                onClick={(event) => handleChartClick(event, d, i)}
-              />
-              {clickedPoint && clickedPoint.index === i && (
-                <>
-                  <circle
-                    ref={circleRef}
-                    cx={clickedPoint.x}
-                    cy={clickedPoint.y}
-                    r={5}
-                    fill="yellow"
-                  />
-                  <text
-                    ref={textRef}
-                    x={clickedPoint.x + 10} // Adjust horizontal position as needed
-                    y={clickedPoint.y - 10} // Adjust vertical position to place it higher above the circle
-                    fontSize="14px"
-                    fontWeight="bold"
-                    textAnchor="start"
-                    style={{
-                      zIndex:1
-                    }}
-                  >
-                    {clickedPoint.text}
-                  </text>
-                </>
-              )}
-            </g>
-          ))}
-        </g> */}
         <g clipPath={`url(#${clipPathId})`}>
           {data.map((d, i) => (
             <g key={i} className="candlestick">
@@ -278,31 +223,28 @@ export default function CandlestickChart({
               />
             </g>
           ))}
-          {clickedPoint && (
-            <>
+          {clickedPoints.map((point, i) => (
+            <g key={i}>
               <circle
-                ref={circleRef}
-                cx={clickedPoint.x}
-                cy={clickedPoint.y}
+                cx={point.x}
+                cy={point.y}
                 r={5}
                 fill="yellow"
               />
               <text
-                ref={textRef}
-                x={clickedPoint.x + 10} // Adjust horizontal position as needed
-                y={clickedPoint.y - 20} // Adjust vertical position to place it higher above the circle
+                x={point.x + 10}
+                y={point.y - 20}
                 fontSize="14px"
                 fontWeight="bold"
                 textAnchor="start"
               >
-                {clickedPoint.text}
+                {point.text}
               </text>
-            </>
-          )}
+            </g>
+          ))}
         </g>
-
       </svg>
-      {inputVisible && clickedPoint && (
+      {inputVisible && currentIndex !== null && (
         <input
           ref={inputRef}
           type="text"
@@ -311,17 +253,15 @@ export default function CandlestickChart({
           onBlur={handleInputBlur}
           style={{
             position: "absolute",
-            left: clickedPoint.x + 10,
-            top: clickedPoint.y - 50, // Adjusted to be above the clicked point
-            zIndex: 10, // Ensure a high zIndex to overlay other elements
-            color: "white", // Text color
-            borderColor: "black", // Border color
-            backgroundColor: "#db1616", // Background color
+            left: `${x(currentIndex) + 10}px`,
+            top: `${y(data[currentIndex].close) - 50}px`,
+            zIndex: 10,
+            color: "white",
+            borderColor: "black",
+            backgroundColor: "#db1616",
           }}
         />
       )}
-
-
     </>
   );
 }
