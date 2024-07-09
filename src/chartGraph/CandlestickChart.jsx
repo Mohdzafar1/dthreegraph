@@ -18,8 +18,12 @@ export default function CandlestickChart({
   const clipPathId = "clip-path";
   const circleRef = useRef();
   const textRef = useRef();
+  const inputRef = useRef();
   const [tooltip, setTooltip] = useState(null);
   const [clickedPoint, setClickedPoint] = useState(null);
+  const [inputVisible, setInputVisible] = useState(false);
+  const [inputValue, setInputValue] = useState("");
+  
 
   const handleResize = () => {
     const newWidth = window.innerWidth - 40;
@@ -106,6 +110,10 @@ export default function CandlestickChart({
         d3.select(textRef.current)
           .attr("x", newClickedX + 10)
           .attr("y", newClickedY - 10);
+
+        d3.select(inputRef.current)
+          .style("left", `${newClickedX + 10}px`)
+          .style("top", `${newClickedY + 50}px`);
       }
     };
 
@@ -153,7 +161,6 @@ export default function CandlestickChart({
     handleText(clickIndex, clickY);
   };
 
-  // add text on candleStick
   const handleText = (clickIndex, clickY) => {
     const updatedClickedPoint = {
       x: x(clickIndex),
@@ -165,15 +172,22 @@ export default function CandlestickChart({
     // Set the clicked point with initial text
     setClickedPoint(updatedClickedPoint);
 
-    // Prompt for text input
-    const input = prompt("Enter text:");
-    if (input !== null) {
-      setClickedPoint({
-        ...updatedClickedPoint,
-        text: input,
-      });
-    }
-   
+    // Show the input field
+    setInputVisible(true); // Ensure inputVisible is set to true after setting clickedPoint
+    setInputValue("");
+  };
+
+
+  const handleInputChange = (event) => {
+    setInputValue(event.target.value);
+  };
+
+  const handleInputBlur = () => {
+    setInputVisible(false);
+    setClickedPoint((prev) => ({
+      ...prev,
+      text: inputValue,
+    }));
   };
 
   return (
@@ -191,7 +205,7 @@ export default function CandlestickChart({
         </defs>
         <g ref={gx} transform={`translate(0,${dimensions.height - marginBottom})`} />
         <g ref={gy} transform={`translate(${marginLeft},0)`} />
-        <g clipPath={`url(#${clipPathId})`}>
+        {/* <g clipPath={`url(#${clipPathId})`}>
           {data.map((d, i) => (
             <g key={i} className="candlestick">
               <line
@@ -229,6 +243,9 @@ export default function CandlestickChart({
                     fontSize="14px"
                     fontWeight="bold"
                     textAnchor="start"
+                    style={{
+                      zIndex:1
+                    }}
                   >
                     {clickedPoint.text}
                   </text>
@@ -236,8 +253,75 @@ export default function CandlestickChart({
               )}
             </g>
           ))}
+        </g> */}
+        <g clipPath={`url(#${clipPathId})`}>
+          {data.map((d, i) => (
+            <g key={i} className="candlestick">
+              <line
+                className="wick"
+                stroke="black"
+                x1={x(i)}
+                x2={x(i)}
+                y1={y(d.high)}
+                y2={y(d.low)}
+              />
+              <rect
+                className="candle"
+                fill={d.open > d.close ? "red" : "green"}
+                x={x(i) - Math.max((x(1) - x(0)) * 0.8, minCandleWidth) / 2}
+                width={Math.max((x(1) - x(0)) * 0.8, minCandleWidth)}
+                y={y(Math.max(d.open, d.close))}
+                height={Math.abs(y(d.open) - y(d.close))}
+                onMouseOver={(event) => handleMouseOver(event, d)}
+                onMouseOut={handleMouseOut}
+                onClick={(event) => handleChartClick(event, d, i)}
+              />
+            </g>
+          ))}
+          {clickedPoint && (
+            <>
+              <circle
+                ref={circleRef}
+                cx={clickedPoint.x}
+                cy={clickedPoint.y}
+                r={5}
+                fill="yellow"
+              />
+              <text
+                ref={textRef}
+                x={clickedPoint.x + 10} // Adjust horizontal position as needed
+                y={clickedPoint.y - 20} // Adjust vertical position to place it higher above the circle
+                fontSize="14px"
+                fontWeight="bold"
+                textAnchor="start"
+              >
+                {clickedPoint.text}
+              </text>
+            </>
+          )}
         </g>
+
       </svg>
+      {inputVisible && clickedPoint && (
+        <input
+          ref={inputRef}
+          type="text"
+          value={inputValue}
+          onChange={handleInputChange}
+          onBlur={handleInputBlur}
+          style={{
+            position: "absolute",
+            left: clickedPoint.x + 10,
+            top: clickedPoint.y - 50, // Adjusted to be above the clicked point
+            zIndex: 10, // Ensure a high zIndex to overlay other elements
+            color: "white", // Text color
+            borderColor: "black", // Border color
+            backgroundColor: "#db1616", // Background color
+          }}
+        />
+      )}
+
+
     </>
   );
 }
